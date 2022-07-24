@@ -210,7 +210,28 @@ class GPSIFDTag(IntEnum):
     GPSDateStamp = 29
     GPSDifferential = 30
     GPSHPositioningError = 31
-    
+
+
+class CanonIFDTag(IntEnum):
+    CameraSettings = 1
+    FocalLength = 2
+    ShotInfo = 4
+    Panorama = 5
+    ImageType = 6
+    FirmwareVersion = 7
+    FileNumber = 8
+    OwnerName = 9
+    CameraInfo = 13
+    ModeIID = 16
+    ThumbnailImageValidArea = 19
+
+
+subifd_map = {
+    IFDTag.Exif: ExifIFDTag,
+    IFDTag.GPSInfo: GPSIFDTag,
+    ExifIFDTag.Interoperability: InteroperabilityIFDTag,
+    ExifIFDTag.MakerNote: CanonIFDTag,
+}
 
 class TIFFDecoder:
     @staticmethod
@@ -225,18 +246,17 @@ class TIFFDecoder:
             count = bs.read_long()
             value_offset = bs.read_long()
 
-            if parent_tag == IFDTag.Exif:
-                tag = ExifIFDTag(tag_num)
-            elif parent_tag == IFDTag.GPSInfo:
-                tag = GPSIFDTag(tag_num)
-            elif parent_tag == ExifIFDTag.Interoperability:
-                tag = InteroperabilityIFDTag(tag_num)
-            else:
-                tag = IFDTag(tag_num)
+            tag_enum = subifd_map.get(parent_tag, IFDTag)
+
+            try:
+                tag = tag_enum(tag_num)
+            except ValueError:
+                print(f'Unknown Tag {tag_num} {str(type)} {count} {value_offset}')
+                continue
         
             print('IFD Entry', tag, type, count, value_offset)
 
-            if tag in (IFDTag.Exif, IFDTag.GPSInfo, ExifIFDTag.Interoperability):
+            if tag in subifd_map:
                 pos = bs.tell()
                 bs.seek(value_offset)
 
